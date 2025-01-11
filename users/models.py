@@ -1,110 +1,128 @@
-# users/models.py
-
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.utils import timezone
-from django.contrib.auth.models import Group, Permission
 
-class AbstractUserBase(models.Model):
+class Role(models.Model):
     """
-    抽象基类，包含所有用户共有的字段
+    角色模型，角色控制访问权限
     """
-    name = models.CharField(max_length=255, verbose_name='姓名')
-    phone = models.CharField(max_length=20, verbose_name='手机号')
-    password = models.CharField(max_length=128, verbose_name='密码')  # AbstractBaseUser 已包含密码字段
-    is_active = models.BooleanField(default=True, verbose_name='是否激活')
-    date_joined = models.DateTimeField(default=timezone.now, verbose_name='加入时间')
+    name = models.CharField(max_length=50, unique=True, verbose_name='角色名称')
+    description = models.CharField(max_length=255, blank=True, null=True, verbose_name='角色描述')
 
     class Meta:
-        abstract = True
+        verbose_name = '角色'
+        verbose_name_plural = '角色'
 
-class AdminUserManager(BaseUserManager):
+    def __str__(self):
+        return self.name
+
+class Permission(models.Model):
     """
-    管理员用户管理器
+    权限模型，表示一项具体权限（如操作权限或菜单权限）
+    """
+    name = models.CharField(max_length=255, unique=True, verbose_name='权限名称')
+    codename = models.CharField(max_length=100, unique=True, verbose_name='权限代号')
+    description = models.TextField(blank=True, null=True, verbose_name='权限描述')
+
+    class Meta:
+        verbose_name = '权限'
+        verbose_name_plural = '权限'
+
+    def __str__(self):
+        return self.name
+
+if serializer.is_valid():
+    user = serializer.create()
+    print(f'用户 {user.name} 创建成功！')
+else:
+    print(serializer.errors)
+
+class RolePermission(models.Model):
+    """
+    角色和权限关联模型，表示某个角色拥有的权限
+    """
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, verbose_name='角色')
+    permission = models.ForeignKey(Permission, on_delete=models.CASCADE, verbose_name='权限')
+
+    class Meta:
+        unique_together = ('role', 'permission')
+
+    def __str__(self):
+        return f"{self.role.name} - {self.permission.name}"
+
+class Menu(models.Model):
+    """
+    菜单模型，表示系统中的每个菜单项
+    """
+    title = models.CharField(max_length=100, verbose_name="菜单标题")
+    route = models.CharField(max_length=200, verbose_name="路由路径")
+    parent = models.ForeignKey('self', null=True, blank=True, related_name='children', on_delete=models.CASCADE)
+    order = models.IntegerField(default=0, verbose_name="菜单排序")
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return self.title
+
+class RoleMenu(models.Model):
+    """
+    角色菜单关联模型，表示某个角色可以访问哪些菜单
+    """
+    role = models.ForeignKey(Role, on_delete=models.CASCADE)
+    menu = models.ForeignKey(Menu, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('role', 'menu')
+
+    def __str__(self):
+        return f"{self.role.name} - {self.menu.title}"
+
+class UserManager(BaseUserManager):
+    """
+    自定义用户管理器
     """
     def create_user(self, phone, name, password=None, **extra_fields):
+        """
+        创建普通用户
+        """
         if not phone:
-            raise ValueError('管理员必须有一个手机号')
+            raise ValueError('用户必须有手机号')
         user = self.model(phone=phone, name=name, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
     def create_superuser(self, phone, name, password=None, **extra_fields):
+        """
+        创建超级管理员
+        """
         user = self.create_user(phone, name, password, **extra_fields)
         user.is_staff = True
         user.is_superuser = True
         user.save(using=self._db)
         return user
 
-class AdminUser(AbstractBaseUser, PermissionsMixin, AbstractUserBase):
+class User(AbstractBaseUser):
     """
-    管理员用户模型
+    用户模型
     """
-    is_staff = models.BooleanField(default=True, verbose_name='是否为员工')  # 必须字段
-    # 显式设置 related_name 来避免冲突
-    groups = models.ManyToManyField(Group, related_name='admin_users', blank=True)
-    user_permissions = models.ManyToManyField(Permission, related_name='admin_user_permissions', blank=True)
-    objects = AdminUserManager()
+    name = models.CharField(max_length=255, verbose_name='姓名')
+    phone = models.CharField(max_length=20, unique=True, verbose_name='手机号')
+    password = models.CharField(max_length=128, verbose_name='密码')
+    is_active = models.BooleanField(default=True, verbose_name='是否激活')
+    date_joined = models.DateTimeField(default=timezone.now, verbose_name='加入时间')
+    role = models.ForeignKey('Role', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='角色')
+    is_staff = models.BooleanField(default=False, verbose_name='是否为员工')
+
+    objects = UserManager()
 
     USERNAME_FIELD = 'phone'
     REQUIRED_FIELDS = ['name']
 
     class Meta:
-        verbose_name = '管理员用户'
-        verbose_name_plural = '管理员用户'
-        unique_together = ('phone',)  # 确保手机号在管理员中唯一
+        verbose_name = '用户'
+        verbose_name_plural = '用户'
 
     def __str__(self):
-        return f"{self.name} ({self.phone}) - 管理员"
-
-class StaffUserManager(BaseUserManager):
-    """
-    普通用户管理器
-    """
-    def create_user(self, phone, name, password=None, **extra_fields):
-        if not phone:
-            raise ValueError('普通用户必须有一个手机号')
-        user = self.model(phone=phone, name=name, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-class StaffUser(AbstractBaseUser, PermissionsMixin, AbstractUserBase):
-    """
-    普通用户（业务员）模型
-    """
-    # 显式设置 related_name 来避免冲突
-    groups = models.ManyToManyField(Group, related_name='staff_users', blank=True)
-    user_permissions = models.ManyToManyField(Permission, related_name='staff_user_permissions', blank=True)
-    objects = StaffUserManager()
-
-    USERNAME_FIELD = 'phone'
-    REQUIRED_FIELDS = ['name']
-
-    class Meta:
-        verbose_name = '普通用户'
-        verbose_name_plural = '普通用户'
-        unique_together = ('phone',)  # 确保手机号在普通用户中唯一
-
-    def __str__(self):
-        return f"{self.name} ({self.phone}) - 普通用户"
-
-class LoginAttempt(models.Model):
-    """
-    模型用于跟踪用户的登录失败次数和锁定时间
-    """
-    ROLE_CHOICES = (
-        ('admin', '管理员'),
-        ('normal', '普通用户'),
-    )
-    phone = models.CharField(max_length=20, verbose_name='手机号')
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, verbose_name='角色')
-    failed_attempts = models.IntegerField(default=0, verbose_name='失败尝试次数')
-    lockout_until = models.DateTimeField(null=True, blank=True, verbose_name='锁定截止时间')
-
-    class Meta:
-        unique_together = ('phone', 'role')  # 同一手机号在不同角色中唯一
-
-    def __str__(self):
-        return f"{self.phone} - {self.role} - 尝试次数: {self.failed_attempts}"
+        return f"{self.name} ({self.phone})"

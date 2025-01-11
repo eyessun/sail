@@ -1,9 +1,21 @@
 # users/urls.py
 
 from django.urls import path
-from .views import AdminLoginView, StaffLoginView
+# from .views import AdminLoginView, StaffLoginView
+
+from .views import (
+    LoginView,
+    UserListView,
+    UserCreateView,
+)
 
 urlpatterns = [
-    path('admin/login/', AdminLoginView.as_view(), name='admin_login'),  # 管理员登录
-    path('staff/login/', StaffLoginView.as_view(), name='staff_login'),  # 普通用户登录
+    path('login/', LoginView.as_view(), name='admin_login'),  # 管理员登录
+
+    # 用户管理
+    path('userslist/', UserListView.as_view(), name='admin-user-list'),
+
+    # 创建用户
+    path('create/', UserCreateView.as_view(), name='staff-user-list'),
+
 ]

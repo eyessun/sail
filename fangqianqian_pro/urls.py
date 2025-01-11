@@ -19,5 +19,5 @@ from django.urls import path,include
 
 urlpatterns = [
     path('admin/', admin.site.urls),  # Django默认后台管理
-    path('api/', include('users.urls')),  # 包含用户应用的URL
+    path('user/', include('users.urls')),  # 包含用户应用的URL
 ]

@@ -1,41 +1,33 @@
-# users/backends.py
-
 from django.contrib.auth.backends import BaseBackend
-from .models import AdminUser, StaffUser
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
+
 
 class PhoneBackend(BaseBackend):
     """
-    自定义认证后端，使用手机号和角色进行认证
+    使用手机号进行身份验证的后端
     """
 
-    def authenticate(self, request, phone=None, password=None, role=None, **kwargs):
-        if phone is None or role is None:
+    def authenticate(self, request, phone=None, password=None, **kwargs):
+        """
+        基于手机号和密码验证用户身份
+        """
+        try:
+            # 尝试通过手机号查找用户
+            user = get_user_model().objects.get(phone=phone)
+        except ObjectDoesNotExist:
             return None
 
-        user = None
-        if role == 'admin':
-            try:
-                user = AdminUser.objects.get(phone=phone)
-            except AdminUser.DoesNotExist:
-                return None
-        elif role == 'normal':
-            try:
-                user = StaffUser.objects.get(phone=phone)
-            except StaffUser.DoesNotExist:
-                return None
-        else:
-            return None
-
-        if user.check_password(password) and user.is_active:
+        # 检查密码是否正确
+        if user.check_password(password):
             return user
-
         return None
 
     def get_user(self, user_id):
+        """
+        获取用户对象，Django 默认会调用这个方法来获取用户实例
+        """
         try:
-            return AdminUser.objects.get(pk=user_id)
-        except AdminUser.DoesNotExist:
-            try:
-                return StaffUser.objects.get(pk=user_id)
-            except StaffUser.DoesNotExist:
-                return None
+            return get_user_model().objects.get(pk=user_id)
+        except ObjectDoesNotExist:
+            return None

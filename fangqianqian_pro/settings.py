@@ -21,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-%kg3xt7r(#_z)h)fxtkwbtg^y(5mezq-xb46-4m3np7gatj-1-'
+SECRET_KEY = '^mvl9$^qod^qt#48a$vxm#c95(-$+nmpa!1co^^)j(8=4!dqc*'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -44,7 +44,9 @@ INSTALLED_APPS = [
 
     # 本地应用
     'users',
+    'utils',
 ]
+AUTH_USER_MODEL = 'users.User'
 # 身份验证后端
 AUTHENTICATION_BACKENDS = [
     'users.backends.PhoneBackend',  # 自定义手机号认证后端
@@ -70,6 +72,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'utils.middleware.JWTAuthenticationMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

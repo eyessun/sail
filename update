@@ -1,0 +1,7 @@
+INSTALLED_APPS = [
+'utils',
+
+MIDDLEWARE =
+'utils.middleware.JWTAuthenticationMiddleware',\
+
+users.adminmodel
